@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>StockManday Drill (Perfect Align)</title>
+  <title>StockManday Drill (Filter Remove)</title>
   <style>
     /* ตั้งค่าหลัก */
     body { 
@@ -37,22 +37,20 @@
     #game-container {
       position: relative;
       width: 100%; 
-      flex: 1; /* กินพื้นที่ที่เหลือทั้งหมด */
-      background: #333; /* พื้นหลังสีเข้มรองรับ */
+      flex: 1; 
+      background: #333; 
       overflow: hidden;
       display: flex;
-      justify-content: center; /* จัดกึ่งกลางแนวนอน */
-      align-items: flex-end;   /* จัดชิดล่าง (เพื่อให้ Indicator ชัด) */
+      justify-content: center; 
+      align-items: flex-end;   
     }
 
-    /* 🔥 ตัวสำคัญ: กรอบล็อกสัดส่วน (Aspect Ratio Box) */
+    /* กรอบล็อกสัดส่วน */
     #chart-box {
       position: relative;
-      /* ขนาดจะถูกกำหนดโดย JS ให้เท่ากับรูปเป๊ะๆ */
       box-shadow: 0 0 20px rgba(0,0,0,0.5);
     }
 
-    /* รูปและ Canvas จะขยายเต็มกรอบ #chart-box เสมอ */
     img.quiz-bg {
       display: block;
       width: 100%; height: 100%;
@@ -271,7 +269,7 @@ const steps = [
 ];
 
 // ======================================================
-// 3. ระบบเกม (Core Engine + Responsive Fix)
+// 3. ระบบเกม (Core Engine)
 // ======================================================
 const canvas = document.getElementById('quizCanvas');
 const ctx = canvas.getContext('2d');
@@ -288,43 +286,31 @@ let scaleX = 1, scaleY = 1;
 let mouseX = 0, mouseY = 0;
 let showCrosshair = false;
 
-// 1. โหลดรูปเสร็จ -> คำนวณขนาดกรอบทันที
 bgImage.onload = function() {
-  resizeChart(); // คำนวณขนาดครั้งแรก
-  window.addEventListener('resize', resizeChart); // คำนวณใหม่เมื่อหมุนจอ
+  resizeChart(); 
+  window.addEventListener('resize', resizeChart);
   showStep();
 };
 
-// 🔥 ฟังก์ชันใหม่: ปรับขนาดกล่องให้เท่ารูปจริง (สำคัญมาก!)
 function resizeChart() {
   const containerW = gameContainer.clientWidth;
   const containerH = gameContainer.clientHeight;
   const imgW = bgImage.naturalWidth;
   const imgH = bgImage.naturalHeight;
-
-  // คำนวณอัตราส่วนเพื่อหาขนาดที่เหมาะสม (Contain)
   const ratio = Math.min(containerW / imgW, containerH / imgH);
-  
   const newW = imgW * ratio;
   const newH = imgH * ratio;
-
-  // กำหนดขนาดให้กล่อง wrapper
   chartBox.style.width = newW + 'px';
   chartBox.style.height = newH + 'px';
-
-  // ตั้งค่าความละเอียด Canvas ให้เท่ากับรูปจริง
   canvas.width = imgW;
   canvas.height = imgH;
-  
-  draw(); // วาดใหม่
+  draw();
 }
 
-// 🔥 ฟังก์ชันแปลงพิกัด (อัปเกรดให้รองรับ Wrapper)
 function getCoords(e) {
   const rect = canvas.getBoundingClientRect();
   scaleX = canvas.width / rect.width;
   scaleY = canvas.height / rect.height;
-
   let clientX, clientY;
   if (e.touches && e.touches.length > 0) {
     clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
@@ -455,7 +441,7 @@ function checkAnswer() {
        document.getElementById('resultStatus').innerHTML = "<span style='color:#e67e22'>⚠️ วาดก่อนส่งครับ</span>";
        return;
   }
-  const margin = 15; 
+  const margin = 60; 
   let isCorrect = false;
   
   if (s.type === 'vertical') {
@@ -478,7 +464,7 @@ function checkAnswer() {
 
 function showStep() {
   if(currentStepIdx >= steps.length) {
-      document.getElementById('questionText').innerText = "🎉 จบเกม!";
+      document.getElementById('questionText').innerText = "🎉 จบเกมส์ สวัสดีปีใหม่ครับผม!";
       document.getElementById('mainActions').style.display = 'none';
       document.getElementById('removePanel').style.display = 'none';
       draw(); return;
@@ -487,11 +473,20 @@ function showStep() {
   document.getElementById('questionText').innerText = s.question;
   document.getElementById('resultStatus').innerText = "";
   tempLine = null; draw();
+  
   if (s.type === 'remove') {
     document.getElementById('removePanel').style.display = 'flex';
     document.getElementById('mainActions').style.display = 'none';
-    const sel = document.getElementById('removeSelector'); sel.innerHTML = "";
-    userLines.forEach((l, i) => { if(!l.removed) sel.innerHTML += `<option value="${i}">เส้น ${i+1}</option>`; });
+    const sel = document.getElementById('removeSelector'); 
+    sel.innerHTML = "";
+    userLines.forEach((l, i) => { 
+       if(l.removed) return;
+       // 🔥 เพิ่มการกรอง: ไม่โชว์เส้น Vertical ในกล่องลบ
+       if(l.type === 'vertical') return;
+
+       const typeName = l.type === 'up' ? 'ขาขึ้น' : 'ขาลง';
+       sel.innerHTML += `<option value="${i}">เส้นที่ ${i+1} (${typeName})</option>`; 
+    });
   } else {
     document.getElementById('removePanel').style.display = 'none';
     document.getElementById('mainActions').style.display = 'block';
