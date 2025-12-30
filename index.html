@@ -3,224 +3,255 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>StockManday Drill (Ultimate)</title>
+  <title>StockManday Drill (Perfect Align)</title>
   <style>
-    /* จัดหน้าให้อยู่ตรงกลางและห้ามเลื่อน Scrollbar */
+    /* ตั้งค่าหลัก */
     body { 
-      background: #f4f4f4; 
-      margin: 0; 
-      padding: 0; 
+      background: #222; 
+      margin: 0; padding: 0; 
       font-family: 'Sarabun', sans-serif; 
-      text-align: center; 
-      touch-action: manipulation;
-      height: 100vh; /* ความสูงเต็มจอ */
-      display: flex;
-      flex-direction: column;
-      justify-content: center; /* จัดกึ่งกลางแนวตั้ง */
-      align-items: center;
-      overflow: hidden; /* ซ่อน Scrollbar */
+      overflow: hidden; 
+      width: 100vw; height: 100vh;
+      display: flex; flex-direction: column;
     }
-    
-    /* กล่องใส่รูป: ให้ยืดหดตามรูป แต่ห้ามสูงเกิน 70% ของจอ */
+
+    /* เตือนหมุนจอ */
+    #rotate-warning {
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      width: 100%; height: 100%;
+      background: #1a1a1a; color: white;
+      text-align: center; z-index: 9999;
+      position: absolute; top: 0; left: 0;
+    }
+    .rotate-icon { font-size: 50px; margin-bottom: 20px; }
+
+    /* Wrapper รวม */
+    #game-wrapper {
+      display: none; 
+      width: 100%; height: 100%;
+      flex-direction: column;
+    }
+
+    /* --- ส่วนที่ 1: พื้นที่แสดงกราฟ (Flexible) --- */
     #game-container {
       position: relative;
-      display: inline-block;
-      max-width: 100%;
-      max-height: 70vh; /* ⚠️ รูปจะสูงไม่เกิน 70% ของจอ เพื่อเหลือที่ให้ปุ่มข้างล่าง */
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      width: 100%; 
+      flex: 1; /* กินพื้นที่ที่เหลือทั้งหมด */
+      background: #333; /* พื้นหลังสีเข้มรองรับ */
+      overflow: hidden;
+      display: flex;
+      justify-content: center; /* จัดกึ่งกลางแนวนอน */
+      align-items: flex-end;   /* จัดชิดล่าง (เพื่อให้ Indicator ชัด) */
     }
 
-    /* ตัวรูปภาพ */
+    /* 🔥 ตัวสำคัญ: กรอบล็อกสัดส่วน (Aspect Ratio Box) */
+    #chart-box {
+      position: relative;
+      /* ขนาดจะถูกกำหนดโดย JS ให้เท่ากับรูปเป๊ะๆ */
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    /* รูปและ Canvas จะขยายเต็มกรอบ #chart-box เสมอ */
     img.quiz-bg {
       display: block;
-      height: auto;
-      width: auto;
-      max-height: 70vh; /* ห้ามสูงเกิน 70% */
-      max-width: 100%;  /* ห้ามกว้างเกินจอ */
-      cursor: crosshair; /* เปลี่ยนเมาส์เป็นเป้าเล็ง */
+      width: 100%; height: 100%;
     }
 
-    /* Canvas (กระดานวาด) ทับรูปพอดี */
     canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      touch-action: none; /* ห้ามจอมือถือเลื่อนขณะวาด */
-      cursor: crosshair;
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      touch-action: none; cursor: crosshair;
     }
 
-    /* กล่องคำตอบ */
+    /* --- ส่วนที่ 2: พื้นที่ควบคุม (Fixed Bottom) --- */
+    #control-area {
+      width: 100%;
+      height: auto; min-height: 80px; 
+      background: #f8f9fa;
+      border-top: 1px solid #444;
+      display: flex; align-items: center; justify-content: center;
+      padding: 10px; box-sizing: border-box;
+      z-index: 100;
+    }
+
     #answer-box {
-      width: 90%;
-      max-width: 600px;
-      margin-top: 15px; 
-      padding: 10px 15px; 
-      background: white;
-      border-radius: 10px; 
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.1); 
-      font-size: 16px;
-      z-index: 10;
+      width: 95%; max-width: 800px;
+      display: flex; flex-direction: row; 
+      align-items: center; justify-content: space-between;
+      gap: 15px;
     }
-    
-    /* ปุ่มต่างๆ */
-    button {
-      padding: 10px 20px; font-size: 16px;
+
+    .question-section { flex: 2; text-align: left; }
+    .action-section { flex: 1; display: flex; justify-content: flex-end; align-items: center; gap:10px;}
+
+    .question-title { 
+      font-size: 16px; font-weight: bold; color: #333; margin: 0; 
+    }
+
+    button.action-btn {
+      padding: 10px 25px; font-size: 16px; font-weight: bold;
       background: #3480d4; color: white; border: none; border-radius: 8px;
-      margin-top: 8px; cursor: pointer; width: 100%;
+      cursor: pointer; white-space: nowrap;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
-    button:active { transform: scale(0.98); }
+    button.action-btn:active { transform: scale(0.96); }
+
+    .status { font-weight: bold; font-size: 20px; min-width: 30px; text-align:center;}
+    .correct { color: #28a745; } .wrong { color: #dc3545; }
     
-    .status { margin-top: 5px; font-weight: bold; font-size: 16px; min-height: 24px; }
-    .correct { color: #28a745; }
-    .wrong { color: #dc3545; }
-    
-    select { padding: 8px; font-size: 16px; width: 100%; border-radius: 5px; border: 1px solid #ccc; margin-top: 5px;}
-    .question-title { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 5px;}
+    #removePanel { display: none; align-items: center; gap: 5px; }
+    select { padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px;}
+
+    @media (orientation: landscape) {
+      #rotate-warning { display: none !important; }
+      #game-wrapper { display: flex !important; }
+    }
   </style>
 </head>
 <body>
 
-<div id="game-container">
-  <img src="quizhappynewyear.png" class="quiz-bg" id="bgImage">
-  <canvas id="quizCanvas"></canvas>
+<div id="rotate-warning">
+  <div class="rotate-icon">🔄</div>
+  <h2>กรุณาหมุนโทรศัพท์เป็นแนวนอน</h2>
 </div>
 
-<div id="answer-box">
-  <div id="questionText" class="question-title">กำลังโหลด...</div>
-  <div class="status" id="resultStatus"></div>
+<div id="game-wrapper">
   
-  <div id="actionButtons">
-      <button id="nextBtn" onclick="checkAnswer()">ส่งคำตอบ</button>
+  <div id="game-container">
+    <div id="chart-box">
+      <img src="quizhappynewyear.png" class="quiz-bg" id="bgImage">
+      <canvas id="quizCanvas"></canvas>
+    </div>
   </div>
-  
-  <div id="removePanel" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #eee;">
-    <div style="text-align:left; margin-bottom:5px;">เลือกเส้นที่จะลบ:</div>
-    <select id="removeSelector"></select>
-    <button onclick="confirmRemove()" style="background:#dc3545;">🗑️ ยืนยันลบเส้นนี้</button>
+
+  <div id="control-area">
+    <div id="answer-box">
+      <div class="question-section">
+          <div id="questionText" class="question-title">Loading...</div>
+      </div>
+      <div class="action-section">
+          <div class="status" id="resultStatus"></div>
+          <div id="mainActions">
+              <button id="nextBtn" class="action-btn" onclick="checkAnswer()">ส่งคำตอบ</button>
+          </div>
+          <div id="removePanel">
+            <select id="removeSelector"></select>
+            <button onclick="confirmRemove()" class="action-btn" style="background:#dc3545;">ลบ</button>
+          </div>
+      </div>
+    </div>
   </div>
+
 </div>
 
 <script>
 // ======================================================
-// 1. ส่วนข้อมูลโจทย์ (เอาจาก Builder มาวางทับตรงนี้)
+// 1. ตั้งค่าพื้นฐาน
+// ======================================================
+const startVisible = 800; 
+const defaultOffset = 200; 
+const maskColor = "#ffffff"; 
+
+// ======================================================
+// 2. ข้อมูลโจทย์
 // ======================================================
 const steps = [
   {
     "question": "จงวาดฟิโบขาลงแบบสมูบณ์ชุดต้นรอบ",
     "type": "down",
-    "answer": {
-      "x1": 454,
-      "y1": 152,
-      "x2": 502,
-      "y2": 91
-    }
+    "answer": { "x1": 460, "y1": 154, "x2": 501, "y2": 91 },
+    "revealLimit": 624
   },
   {
     "question": "จงวาดฟิโบขาลงภูเขาลูกหลัง",
     "type": "down",
-    "answer": {
-      "x1": 679,
-      "y1": 289,
-      "x2": 695,
-      "y2": 198
-    }
+    "answer": { "x1": 679, "y1": 289, "x2": 695, "y2": 198 },
+    "revealLimit": 854
   },
   {
     "question": "จงตัดภูเขาเมื่อภูเขาลูกหลังปิดไม่เกิน 161.8 และเป็นการตัดเขาแบบ DIVERGENCE (ADVANCE)",
     "type": "vertical",
-    "answerX": 753
+    "answerX": 755,
+    "revealLimit": 1252
   },
   {
     "question": "จงลบฟิโบขาลงภูเขาลูกหลังที่ปิดไม่เกิน 161.8",
     "type": "remove",
-    "removeIndex": 1
+    "removeIndex": 1,
+    "revealLimit": 1345
   },
   {
     "question": "จงวาดฟิโบขาลงแบบภูเขาลูกหลังหลังจากตัดภูเขา (ตีทั้งก้อน)",
     "type": "down",
-    "answer": {
-      "x1": 754,
-      "y1": 331,
-      "x2": 1054,
-      "y2": 207
-    }
+    "answer": { "x1": 750, "y1": 331, "x2": 846, "y2": 211 },
+    "revealLimit": 1627
   },
   {
     "question": "จงตัดภูเขาเมื่อราคาถึงสุดทางรักชุดต้นรอบ",
     "type": "vertical",
-    "answerX": 1326
+    "answerX": 1326,
+    "revealLimit": 1625
   },
   {
     "question": "จงลบฟิโบชุดที่ราคาถึงสุดทางรักแล้ว",
     "type": "remove",
-    "removeIndex": 0
+    "removeIndex": 0,
+    "revealLimit": 1632
   },
   {
     "question": "จงวาดฟิโบขาลงสมบูรณ์แบบภูเขาลูกหลัง",
     "type": "down",
-    "answer": {
-      "x1": 1528,
-      "y1": 495,
-      "x2": 1593,
-      "y2": 430
-    }
+    "answer": { "x1": 1527, "y1": 492, "x2": 1594, "y2": 435 },
+    "revealLimit": 1839
   },
   {
     "question": "จงตัดภูเขาเมื่อภูเขาลูกหลังปิดไม่เกิน 161.8 และ RSI จบรอบ",
     "type": "vertical",
-    "answerX": 1623
+    "answerX": 1626,
+    "revealLimit": 1840
   },
   {
     "question": "จงลบฟิโบภูเขาลูกหลังที่ปิดไม่เกิน161.8 หลังจากตัดภูเขา",
     "type": "remove",
-    "removeIndex": 5
+    "removeIndex": 5,
+    "revealLimit": 2025
   },
   {
     "question": "จงวาดฟิโบขาขึ้นแบบสมบูรณ์หลังจากตัดภูเขา",
     "type": "up",
-    "answer": {
-      "x1": 1671,
-      "y1": 394,
-      "x2": 1745,
-      "y2": 462
-    }
+    "answer": { "x1": 1672, "y1": 389, "x2": 1751, "y2": 466 },
+    "revealLimit": 2024
   },
   {
     "question": "จงวาดฟิโบขาลงแบบสมบูรณ์",
     "type": "down",
-    "answer": {
-      "x1": 2121,
-      "y1": 435,
-      "x2": 2187,
-      "y2": 359
-    }
+    "answer": { "x1": 2119, "y1": 435, "x2": 2195, "y2": 358 },
+    "revealLimit": 2469
   },
   {
     "question": "จงตัดภูเขาเมื่อฟิโบขาขึ้นถูกทำลาย",
     "type": "vertical",
-    "answerX": 2032
+    "answerX": 2025,
+    "revealLimit": 2474
   },
   {
     "question": "จงลบฟิโบหัวขาขึ้นที่ถูกทำลาย",
     "type": "remove",
-    "removeIndex": 7
+    "removeIndex": 7,
+    "revealLimit": 2705
   },
   {
     "question": "จงวาดฟิโบภูเขาลูกหลัง",
     "type": "down",
-    "answer": {
-      "x1": 2467,
-      "y1": 671,
-      "x2": 2486,
-      "y2": 594
-    }
+    "answer": { "x1": 2463, "y1": 671, "x2": 2489, "y2": 594 },
+    "revealLimit": 2771
   },
   {
     "question": "จงตัดภูเขาเมื่อฟิโบขาลงถึงเป้าสุดทางรักและภูเขาลูกหลังปิดไม่เกิน 161.8 RSI จบรอบ",
     "type": "vertical",
-    "answerX": 2687
+    "answerX": 2686,
+    "revealLimit": 2844
   },
   {
     "question": "จงลบฟิโบชุดที่ถึงเป้าสุดทางรักแล้ว",
@@ -235,21 +266,18 @@ const steps = [
   {
     "question": "จงวาดฟิโบขาลงแบบสมบูรณ์หลังจากตัดภูเขาชุดสุดท้าย",
     "type": "down",
-    "answer": {
-      "x1": 2687,
-      "y1": 698,
-      "x2": 2716,
-      "y2": 614
-    }
+    "answer": { "x1": 2689, "y1": 701, "x2": 2767, "y2": 616 }
   }
 ];
 
 // ======================================================
-// 2. ระบบเกม Core Engine
+// 3. ระบบเกม (Core Engine + Responsive Fix)
 // ======================================================
 const canvas = document.getElementById('quizCanvas');
 const ctx = canvas.getContext('2d');
 const bgImage = document.getElementById('bgImage');
+const chartBox = document.getElementById('chart-box');
+const gameContainer = document.getElementById('game-container');
 
 let currentStepIdx = 0;
 let userLines = []; 
@@ -257,20 +285,41 @@ let isDrawing = false;
 let startX=0, startY=0;
 let tempLine = null;
 let scaleX = 1, scaleY = 1;
-
-// ตัวแปร Crosshair
 let mouseX = 0, mouseY = 0;
 let showCrosshair = false;
 
-// เริ่มต้น: รอรูปโหลดเสร็จแล้วค่อยตั้งค่า
+// 1. โหลดรูปเสร็จ -> คำนวณขนาดกรอบทันที
 bgImage.onload = function() {
-  // ตั้งค่าความละเอียด Canvas ให้เท่ากับรูปจริง เพื่อความคมชัด
-  canvas.width = bgImage.naturalWidth;
-  canvas.height = bgImage.naturalHeight;
+  resizeChart(); // คำนวณขนาดครั้งแรก
+  window.addEventListener('resize', resizeChart); // คำนวณใหม่เมื่อหมุนจอ
   showStep();
 };
 
-// ฟังก์ชันแปลงพิกัด (Scale) จากหน้าจอมือถือ -> พิกัดรูปจริง
+// 🔥 ฟังก์ชันใหม่: ปรับขนาดกล่องให้เท่ารูปจริง (สำคัญมาก!)
+function resizeChart() {
+  const containerW = gameContainer.clientWidth;
+  const containerH = gameContainer.clientHeight;
+  const imgW = bgImage.naturalWidth;
+  const imgH = bgImage.naturalHeight;
+
+  // คำนวณอัตราส่วนเพื่อหาขนาดที่เหมาะสม (Contain)
+  const ratio = Math.min(containerW / imgW, containerH / imgH);
+  
+  const newW = imgW * ratio;
+  const newH = imgH * ratio;
+
+  // กำหนดขนาดให้กล่อง wrapper
+  chartBox.style.width = newW + 'px';
+  chartBox.style.height = newH + 'px';
+
+  // ตั้งค่าความละเอียด Canvas ให้เท่ากับรูปจริง
+  canvas.width = imgW;
+  canvas.height = imgH;
+  
+  draw(); // วาดใหม่
+}
+
+// 🔥 ฟังก์ชันแปลงพิกัด (อัปเกรดให้รองรับ Wrapper)
 function getCoords(e) {
   const rect = canvas.getBoundingClientRect();
   scaleX = canvas.width / rect.width;
@@ -278,228 +327,174 @@ function getCoords(e) {
 
   let clientX, clientY;
   if (e.touches && e.touches.length > 0) {
-    clientX = e.touches[0].clientX;
-    clientY = e.touches[0].clientY;
+    clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
   } else {
-    clientX = e.clientX;
-    clientY = e.clientY;
+    clientX = e.clientX; clientY = e.clientY;
   }
-  return {
-    x: (clientX - rect.left) * scaleX,
-    y: (clientY - rect.top) * scaleY
-  };
+  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
 }
 
-// --- Event Listeners (รองรับทั้ง Mouse และ Touch) ---
 canvas.addEventListener('mousedown', onStart);
 canvas.addEventListener('touchstart', onStart, {passive: false});
 canvas.addEventListener('mousemove', onMove);
 canvas.addEventListener('touchmove', onMove, {passive: false});
 canvas.addEventListener('mouseup', onEnd);
 canvas.addEventListener('touchend', onEnd);
-canvas.addEventListener('mouseleave', () => {
-    showCrosshair = false;
-    draw();
-});
+canvas.addEventListener('mouseleave', () => { showCrosshair = false; draw(); });
 
 function onStart(e) {
-  if (e.cancelable) e.preventDefault(); // กันจอมือถือเลื่อน
+  if (e.cancelable) e.preventDefault();
   const coords = getCoords(e);
-  
-  // อัปเดต Crosshair
   mouseX = coords.x; mouseY = coords.y; showCrosshair = true;
   startX = coords.x; startY = coords.y;
 
-  const s = steps[currentStepIdx];
-  if (s.type === 'remove') {
-      draw(); return;
-  }
+  if(startX > getRevealLimit()) return; 
 
-  if (s.type === 'vertical') {
-    tempLine = { type: 'vertical', x: startX };
-  } else {
-    isDrawing = true;
-    tempLine = null;
-  }
+  const s = steps[currentStepIdx];
+  if (s.type === 'remove') { draw(); return; }
+
+  if (s.type === 'vertical') { tempLine = { type: 'vertical', x: startX }; }
+  else { isDrawing = true; tempLine = null; }
   draw();
 }
 
 function onMove(e) {
   if (e.cancelable) e.preventDefault();
   const coords = getCoords(e);
-  
-  // อัปเดต Crosshair
   mouseX = coords.x; mouseY = coords.y; showCrosshair = true;
-
   if (isDrawing) {
       const s = steps[currentStepIdx];
-      tempLine = {
-        type: s.type,
-        x1: startX, y1: startY,
-        x2: coords.x, y2: coords.y
-      };
+      tempLine = { type: s.type, x1: startX, y1: startY, x2: coords.x, y2: coords.y };
   }
   draw();
 }
 
-function onEnd() { 
-    isDrawing = false; 
-    draw();
+function onEnd() { isDrawing = false; draw(); }
+
+function getRevealLimit() {
+  if(currentStepIdx >= steps.length) return canvas.width;
+  if(steps[currentStepIdx].revealLimit !== undefined) {
+      return steps[currentStepIdx].revealLimit;
+  }
+  let maxX = 0;
+  for(let i=0; i < currentStepIdx; i++) {
+     const s = steps[i];
+     if(s.revealLimit) maxX = Math.max(maxX, s.revealLimit);
+     if(s.type === 'vertical') maxX = Math.max(maxX, s.answerX);
+     else if (s.type === 'up' || s.type === 'down') maxX = Math.max(maxX, s.answer.x1, s.answer.x2);
+  }
+  return Math.max(startVisible, maxX + defaultOffset);
 }
 
-// --- Main Render Function ---
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // 1. วาด Crosshair (ชั้นล่างสุด)
-  if(showCrosshair) drawCrosshair();
+  const limitX = getRevealLimit();
 
-  // 2. วาดเส้นเก่า (History)
-  userLines.forEach((line, idx) => {
-    if(!line.removed) drawSingleLine(line, false, idx + 1);
-  });
-  
-  // 3. วาดเส้นปัจจุบัน (Preview)
+  if(showCrosshair && mouseX < limitX) drawCrosshair();
+
+  userLines.forEach((line, idx) => { if(!line.removed) drawSingleLine(line, false, idx + 1); });
   if (tempLine) drawSingleLine(tempLine, true);
+
+  if(limitX < canvas.width) {
+      ctx.fillStyle = maskColor;
+      ctx.fillRect(limitX, 0, canvas.width - limitX, canvas.height);
+      ctx.beginPath();
+      ctx.moveTo(limitX, 0); ctx.lineTo(limitX, canvas.height);
+      ctx.strokeStyle = "#888"; ctx.lineWidth = 2; ctx.setLineDash([10,10]);
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#aaa"; ctx.font = "bold 20px Arial";
+      ctx.fillText("Waiting...", limitX + 20, 50);
+  }
 }
 
-// ฟังก์ชันวาดเป้าเล็ง
 function drawCrosshair() {
     ctx.beginPath();
-    ctx.strokeStyle = '#666'; 
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 5]); 
-    ctx.moveTo(mouseX, 0); ctx.lineTo(mouseX, canvas.height); // แนวตั้ง
-    ctx.moveTo(0, mouseY); ctx.lineTo(canvas.width, mouseY); // แนวนอน
-    ctx.stroke();
-    ctx.setLineDash([]); 
+    ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]); 
+    ctx.moveTo(mouseX, 0); ctx.lineTo(mouseX, canvas.height); 
+    ctx.moveTo(0, mouseY); ctx.lineTo(canvas.width, mouseY); 
+    ctx.stroke(); ctx.setLineDash([]); 
 }
 
-// ฟังก์ชันวาดเส้นกราฟ
 function drawSingleLine(line, isPreview, labelIndex=null) {
-  ctx.lineWidth = isPreview ? 2 : 4; 
-  
-  // Case 1: Vertical Line
+  ctx.lineWidth = isPreview ? 3 : 5; 
   if (line.type === 'vertical') {
-    ctx.beginPath();
-    ctx.moveTo(line.x, 0); ctx.lineTo(line.x, canvas.height);
+    ctx.beginPath(); ctx.moveTo(line.x, 0); ctx.lineTo(line.x, canvas.height);
     ctx.strokeStyle = isPreview ? '#007bff' : '#6f42c1'; 
-    ctx.setLineDash([10, 5]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    return;
+    ctx.setLineDash([10, 5]); ctx.stroke(); ctx.setLineDash([]); return;
   }
-
-  // Case 2: Fibo Line
   const isDown = line.type === 'down';
   const mainColor = isDown ? '#dc3545' : '#28a745'; 
-  
-  // วาดเส้นหลัก
-  ctx.beginPath();
-  ctx.moveTo(line.x1, line.y1); ctx.lineTo(line.x2, line.y2);
+  ctx.beginPath(); ctx.moveTo(line.x1, line.y1); ctx.lineTo(line.x2, line.y2);
   ctx.strokeStyle = isPreview ? (isDown ? 'rgba(220,53,69,0.5)' : 'rgba(40,167,69,0.5)') : mainColor;
-  ctx.setLineDash([]);
-  ctx.stroke();
+  ctx.setLineDash([]); ctx.stroke();
+  ctx.fillStyle = mainColor; ctx.beginPath(); ctx.arc(line.x2, line.y2, isPreview? 5:8, 0, Math.PI*2); ctx.fill();
 
-  // วาดจุดปลาย
-  ctx.fillStyle = mainColor;
-  ctx.beginPath(); ctx.arc(line.x2, line.y2, isPreview? 4:6, 0, Math.PI*2); ctx.fill();
-
-  // วาด Fibo Levels
   const levels = [0, 1, 1.272, 1.618, 2, 2.618, 4.236]; 
-  
   levels.forEach(lvl => {
-    let yLevel;
-    if (isDown) yLevel = line.y2 + (line.y1 - line.y2) * lvl;
-    else yLevel = line.y2 - (line.y2 - line.y1) * lvl;
-
-    ctx.beginPath();
-    ctx.moveTo(line.x2 - 30, yLevel); ctx.lineTo(line.x2 + 80, yLevel); 
-    ctx.strokeStyle = mainColor;
-    ctx.lineWidth = 1.5;
-    
-    // เส้น 100% กับ 161.8% เป็นเส้นทึบ นอกนั้นเส้นประ
+    let yLevel = isDown ? line.y2 + (line.y1 - line.y2) * lvl : line.y2 - (line.y2 - line.y1) * lvl;
+    ctx.beginPath(); ctx.moveTo(line.x2 - 30, yLevel); ctx.lineTo(line.x2 + 80, yLevel); 
+    ctx.strokeStyle = mainColor; ctx.lineWidth = 1.5;
     if(lvl === 1 || lvl === 1.618) ctx.setLineDash([]); else ctx.setLineDash([4, 4]);
     ctx.stroke();
-    
-    // เขียนตัวเลข (ไม่ตกขอบ)
-    ctx.fillStyle = mainColor;
-    ctx.font = isPreview ? "12px Arial" : "bold 14px Arial";
-    let text = (lvl * 100).toFixed(1); 
-    if (text.endsWith('.0')) text = text.replace('.0', '');
+    ctx.fillStyle = mainColor; ctx.font = isPreview ? "12px Arial" : "bold 14px Arial";
+    let text = (lvl * 100).toFixed(1); if (text.endsWith('.0')) text = text.replace('.0', '');
     ctx.fillText(text, line.x2 + 5, yLevel - 5); 
   });
   ctx.setLineDash([]);
-
-  // Label เลขข้อ
   if(labelIndex !== null) {
-      const midX = (line.x1+line.x2)/2;
-      const midY = (line.y1+line.y2)/2 - 20;
-      ctx.save();
-      ctx.globalAlpha = 0.8; ctx.fillStyle = 'white';
-      ctx.fillRect(midX - 15, midY - 25, 30, 30);
-      ctx.restore();
-      ctx.fillStyle = 'black'; ctx.font = "bold 30px Arial";
-      ctx.fillText(labelIndex, midX - 8, midY); 
+      const midX = (line.x1+line.x2)/2; const midY = (line.y1+line.y2)/2 - 20;
+      ctx.save(); ctx.globalAlpha = 0.8; ctx.fillStyle = 'white';
+      ctx.fillRect(midX - 15, midY - 25, 30, 30); ctx.restore();
+      ctx.fillStyle = 'black'; ctx.font = "bold 30px Arial"; ctx.fillText(labelIndex, midX - 8, midY); 
   }
 }
 
-// Logic ตรวจคำตอบ
 function checkAnswer() {
   const s = steps[currentStepIdx];
-  if(!tempLine) {
-       document.getElementById('resultStatus').innerHTML = "<span style='color:#e67e22'>⚠️ กรุณาวาดเส้นก่อนครับ</span>";
+  if(!tempLine) { 
+       document.getElementById('resultStatus').innerHTML = "<span style='color:#e67e22'>⚠️ วาดก่อนส่งครับ</span>";
        return;
   }
-
-  const marginY = 40; 
-  const marginVert = 50; 
+  const margin = 15; 
   let isCorrect = false;
   
   if (s.type === 'vertical') {
-     if(Math.abs(tempLine.x - s.answerX) < marginVert) isCorrect = true;
+     if(Math.abs(tempLine.x - s.answerX) < margin) isCorrect = true;
   } else {
-     if(Math.abs(tempLine.y1 - s.answer.y1) < marginY && 
-        Math.abs(tempLine.y2 - s.answer.y2) < marginY) isCorrect = true;
+     const u = tempLine; const a = s.answer;
+     const directMatch = (Math.abs(u.y1 - a.y1) < margin && Math.abs(u.y2 - a.y2) < margin) && (Math.abs(u.x1 - a.x1) < margin && Math.abs(u.x2 - a.x2) < margin);
+     const reverseMatch = (Math.abs(u.y1 - a.y2) < margin && Math.abs(u.y2 - a.y1) < margin) && (Math.abs(u.x1 - a.x2) < margin && Math.abs(u.x2 - a.x1) < margin);
+     if (directMatch || reverseMatch) isCorrect = true;
   }
 
   if (isCorrect) {
-    document.getElementById('resultStatus').innerHTML = "<span class='correct'>✅ ถูกต้อง!</span>";
-    userLines.push({...tempLine, removed: false});
-    tempLine = null;
-    draw();
-    setTimeout(() => { currentStepIdx++; showStep(); }, 1000);
+    document.getElementById('resultStatus').innerHTML = "<span class='correct'>✅</span>";
+    userLines.push({...tempLine, removed: false}); tempLine = null; 
+    currentStepIdx++; draw(); setTimeout(() => { showStep(); }, 1000);
   } else {
-    document.getElementById('resultStatus').innerHTML = "<span class='wrong'>❌ ยังไม่ถูก ลองใหม่นะ</span>";
+    document.getElementById('resultStatus').innerHTML = "<span class='wrong'>❌</span>";
   }
 }
 
 function showStep() {
   if(currentStepIdx >= steps.length) {
-      document.getElementById('questionText').innerText = "🎉 จบเกม! คุณสุดยอดมาก";
-      document.getElementById('actionButtons').style.display = 'none';
+      document.getElementById('questionText').innerText = "🎉 จบเกม!";
+      document.getElementById('mainActions').style.display = 'none';
       document.getElementById('removePanel').style.display = 'none';
-      document.getElementById('resultStatus').innerText = "";
-      return;
+      draw(); return;
   }
-  
   const s = steps[currentStepIdx];
   document.getElementById('questionText').innerText = s.question;
   document.getElementById('resultStatus').innerText = "";
-  tempLine = null;
-  draw();
-
+  tempLine = null; draw();
   if (s.type === 'remove') {
-    document.getElementById('removePanel').style.display = 'block';
-    document.getElementById('nextBtn').style.display = 'none';
-    const sel = document.getElementById('removeSelector');
-    sel.innerHTML = "";
-    userLines.forEach((l, i) => {
-       if(!l.removed) sel.innerHTML += `<option value="${i}">เส้นที่ ${i+1} (${l.type.toUpperCase()})</option>`;
-    });
+    document.getElementById('removePanel').style.display = 'flex';
+    document.getElementById('mainActions').style.display = 'none';
+    const sel = document.getElementById('removeSelector'); sel.innerHTML = "";
+    userLines.forEach((l, i) => { if(!l.removed) sel.innerHTML += `<option value="${i}">เส้น ${i+1}</option>`; });
   } else {
     document.getElementById('removePanel').style.display = 'none';
-    document.getElementById('nextBtn').style.display = 'inline-block';
+    document.getElementById('mainActions').style.display = 'block';
   }
 }
 
@@ -507,13 +502,9 @@ function confirmRemove() {
     const idx = parseInt(document.getElementById('removeSelector').value);
     const s = steps[currentStepIdx];
     if (idx === s.removeIndex) {
-        userLines[idx].removed = true;
-        document.getElementById('resultStatus').innerHTML = "<span class='correct'>✅ ลบถูกต้อง!</span>";
-        draw();
-        setTimeout(() => { currentStepIdx++; showStep(); }, 1000);
-    } else {
-        document.getElementById('resultStatus').innerHTML = "<span class='wrong'>❌ ลบผิดเส้น!</span>";
-    }
+        userLines[idx].removed = true; document.getElementById('resultStatus').innerHTML = "<span class='correct'>✅</span>";
+        currentStepIdx++; draw(); setTimeout(() => { showStep(); }, 1000);
+    } else { document.getElementById('resultStatus').innerHTML = "<span class='wrong'>❌</span>"; }
 }
 </script>
 </body>
